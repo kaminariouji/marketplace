@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { env } from "~/env";
+import { isStarknetAddress } from "~/config/chains";
 import getCollection from "~/lib/getCollection";
+import getCollectionNameFromRpc from "~/lib/getCollectionNameFromRpc";
 import CollectionBanner from "./components/collection-banner";
 import CollectionHeader from "./components/collection-header";
 import CollectionItems from "./components/collection-items";
+import CollectionNotIndexed from "./components/collection-not-indexed";
 import MobileCollectionHeader from "./components/mobile-collection-header";
-import { ChainId, CollectionAddresses, CollectionDescription, Collections } from "~/config/homepage";
 
 interface GenerateMetadataProps {
   params: Promise<{ collectionAddress: string }>;
@@ -42,30 +44,46 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
   const { collectionAddress } = params;
   const collection = await getCollection({ collectionAddress });
 
-  const collectionDescription = CollectionDescription[collectionAddress];
-  if (!collectionDescription || !collection) {
-    return notFound();
+  if (collection) {
+    return (
+      <div className="flex min-h-[calc(100vh-var(--site-header-height))] flex-col">
+        <CollectionBanner
+          className="hidden md:block"
+          collectionAddress={collectionAddress}
+        />
+        <CollectionHeader
+          collectionAddress={collectionAddress}
+          collection={collection}
+        />
+        <MobileCollectionHeader
+          collectionAddress={collectionAddress}
+          collection={collection}
+        />
+        <CollectionItems
+          collectionAddress={collectionAddress}
+          collectionTokenCount={collection.token_count}
+        />
+      </div>
+    );
   }
 
-  return (
-    <div className="flex min-h-[calc(100vh-var(--site-header-height))] flex-col">
-      <CollectionBanner
-        className="hidden md:block"
-        collectionAddress={collectionAddress}
-      />
-      <CollectionHeader
-        collectionAddress={collectionAddress}
-        collection={collection}
-      />
-      <MobileCollectionHeader
-        collectionAddress={collectionAddress}
-        collection={collection}
-      />
-      <CollectionItems
-        collectionAddress={collectionAddress}
-        collectionTokenCount={collection.token_count}
-      />
-    </div>);
+  // The collection is not in the indexer. When the address is a valid
+  // Starknet contract, verify it on-chain and offer to request indexing
+  // instead of returning a bare 404 — that is what makes any real Starknet
+  // collection reachable through the marketplace.
+  if (isStarknetAddress(collectionAddress)) {
+    const onChainName = await getCollectionNameFromRpc(collectionAddress);
+    if (onChainName !== null) {
+      return (
+        <CollectionNotIndexed
+          collectionAddress={collectionAddress}
+          name={onChainName}
+        />
+      );
+    }
+  }
+
+  return notFound();
 }
 
 

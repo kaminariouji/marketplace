@@ -36,9 +36,13 @@ export default function CollectionHeader({
 
   const { data } = useCollection({ address: collectionAddress });
 
-  const description = CollectionDescription[collection.address];
+  const description =
+    CollectionDescription[collection.address] ??
+    (collection.description
+      ? { created: "", description: collection.description }
+      : undefined);
   const collectionConfig = homepageConfig.mainCarousel.find((collection) => collection.address === collectionAddress)
-  if (!data || !description) {
+  if (!data) {
     return null;
   }
   const image = data.image || collectionConfig?.collectionSrc || null;
@@ -83,7 +87,7 @@ export default function CollectionHeader({
                 <ExternalLink href={siteConfig.links.github}>
                   <Github className="h-4" />
                 </ExternalLink>
-                {collection.description || description && (
+                {(collection.description ?? description) && (
                   <CollapsibleTrigger asChild>
                     <button
                       className={cn(
@@ -108,16 +112,18 @@ export default function CollectionHeader({
           </div>
         </div>
         <CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
-          <p className="flex items-center gap-2 pt-8">
-            Created
-
-            { }
-            <span className="text-muted-foreground"> {description.created}</span>
-          </p>
-          <p className="max-w-lg pt-4 text-sm">
-            { }
-            {description.description}
-          </p>
+          {description?.created ? (
+            <p className="flex items-center gap-2 pt-8">
+              Created
+              <span className="text-muted-foreground">
+                {" "}
+                {description.created}
+              </span>
+            </p>
+          ) : null}
+          {description?.description ? (
+            <p className="max-w-lg pt-4 text-sm">{description.description}</p>
+          ) : null}
           <div className="block lg:hidden">
             <CollectionHeaderStats collection={data} />
           </div>
